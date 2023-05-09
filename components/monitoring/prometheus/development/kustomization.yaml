@@ -4,3 +4,4 @@ resources:
 - cluster-monitoring-config.yaml
 - dummy-service-service-monitor.yaml
 - dummy-service.yaml
+- uwm-config.yaml

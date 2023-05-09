@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-workload-monitoring-config
+  namespace: openshift-user-workload-monitoring
+data:
+  config.yaml: |
+    prometheus:
+      logLevel: debug
+      # remoteWrite:
+      # - url: "https://observatorium-mst.api.stage.openshift.com/api/metrics/v1/rhtap/api/v1/receive"
+      #   oauth2:
+      #     clientId:
+      #       secret:
+      #         key: client_id
+      #         name: rhobs-secret
+      #     clientSecret:
+      #       key: client_secret
+      #       name: rhobs-secret
+      #     tokenUrl: "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
+      #     endpointParams:
+      #       audience: observatorium-osd-staging
+      #   writeRelabelConfigs:
+      #   - sourceLabels:
+      #       - __name__
+      #     regex: '.*workqueue_work_duration_seconds_sum.*'
+      #     action: drop

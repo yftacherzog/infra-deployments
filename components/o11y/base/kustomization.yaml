@@ -4,4 +4,4 @@ commonLabels:
   openshift.io/workload-monitoring: "true"
 
 resources:
-- https://github.com/redhat-appstudio/o11y/prometheus/base?ref=1eaa7b2080cdb39db231dad30cf8d7135ac22207
+- https://github.com/yftacherzog/o11y/prometheus/base?ref=7199195786f7075662aa668a0e0698dbbc4d121a

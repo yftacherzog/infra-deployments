@@ -4,4 +4,4 @@
   value: https://github.com/yftacherzog/infra-deployments.git
 - op: replace
   path: /spec/template/spec/source/targetRevision
-  value: preview-HEAD
+  value: preview-preview-HEAD

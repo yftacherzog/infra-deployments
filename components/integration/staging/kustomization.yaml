@@ -4,6 +4,7 @@ resources:
 - ../base
 - ../base/external-secrets
 - https://github.com/redhat-appstudio/integration-service/config/default?ref=4b89853a9724bc241412714c3a1cd2e443848f49
+- https://github.com/redhat-appstudio/integration-service/config/snapshotgc?ref=2f5b49b32f7a932753596e239ecae8fea4eb12e0
 
 images:
 - name: quay.io/redhat-appstudio/integration-service

@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - base
+patchesStrategicMerge:
+  - release-config.yaml
+components:
+  - overlay-patches/build
+  - overlay-patches/image-controller
+  - overlay-patches/integration
+  - overlay-patches/konflux-info
+  - overlay-patches/konflux-ui
+  - overlay-patches/namespace-lister
+  - overlay-patches/release

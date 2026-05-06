@@ -1,0 +1,23 @@
+# See the OWNERS docs: https://go.k8s.io/owners
+
+approvers:
+- dirgim
+- hongweiliu17
+- jsztuka
+- kasemAlem
+- sonam1412
+- Josh-Everett
+- 14rcole
+- jencull
+- NigelByrne1
+
+reviewers:
+- dirgim
+- hongweiliu17
+- jsztuka
+- kasemAlem
+- sonam1412
+- Josh-Everett
+- 14rcole
+- jencull
+- NigelByrne1

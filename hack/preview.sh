@@ -256,11 +256,12 @@ dump_pending_apps_details() {
 # =============================================================================
 
 print_help() {
-    echo "Usage: $0 MODE [--obo] [--grafana] [--eaas] [-h|--help]"
+    echo "Usage: $0 MODE [--obo] [--grafana] [--eaas] [--operator-overlay] [-h|--help]"
     echo "  MODE             upstream/preview (default: upstream)"
     echo "  --obo        (only in preview mode) Install Observability operator and Prometheus instance for federation"
     echo "  --grafana    (only in preview mode) Enable Grafana dashboard (removed by default in dev)"
     echo "  --eaas       (only in preview mode) Install environment as a service components"
+    echo "  --operator-overlay  (preview mode) development-operator overlay (development minus legacy member appsets)"
     echo
     echo "Example usage: \`$0 --obo --grafana --eaas"
 }
@@ -306,15 +307,16 @@ label_cluster_nodes() {
 
 # Filter applications based on DEPLOY_ONLY environment variable
 configure_deploy_only() {
+    [ "$TARGET_PREVIEW_OVERLAY" != "development" ] && [ "$TARGET_PREVIEW_OVERLAY" != "development-operator" ] && return
     [ -z "$DEPLOY_ONLY" ] && return
 
     log_step "Configuring selective deployment (DEPLOY_ONLY mode)"
     log_info "DEPLOY_ONLY is set, filtering applications to deploy only: $DEPLOY_ONLY"
 
     local applications deleted app
-    local delete_file="$ROOT/argo-cd-apps/overlays/development/delete-applications.yaml"
+    local delete_file="$TARGET_DELETE_FILE"
 
-    applications=$(oc kustomize argo-cd-apps/overlays/development | yq e --no-doc 'select(.kind == "ApplicationSet") | .metadata.name')
+    applications=$(oc kustomize "$TARGET_OVERLAY_PATH" | yq e --no-doc 'select(.kind == "ApplicationSet") | .metadata.name')
     deleted=$(yq e --no-doc .metadata.name "$delete_file")
 
     for app in $applications; do
@@ -333,6 +335,7 @@ configure_deploy_only() {
 
 # Disable Kueue for OCP versions < 4.16
 configure_kueue_for_ocp_version() {
+    [ "$TARGET_PREVIEW_OVERLAY" != "development" ] && [ "$TARGET_PREVIEW_OVERLAY" != "development-operator" ] && return
     log_step "Checking OCP version for Kueue compatibility"
 
     local ocp_version ocp_minor delete_file
@@ -349,7 +352,7 @@ configure_kueue_for_ocp_version() {
 
     log_warn "OCP version $ocp_version is below 4.16 - Kueue will be disabled"
 
-    delete_file="$ROOT/argo-cd-apps/overlays/development/delete-applications.yaml"
+    delete_file="$TARGET_DELETE_FILE"
 
     if ! grep -q "name: kueue" "$delete_file"; then
         log_substep "Adding Kueue to delete-applications.yaml"
@@ -497,8 +500,8 @@ deploy_and_wait_for_argocd() {
     local total_apps synced_apps pending_apps iteration=0
 
     # Create the root Application
-    log_substep "Applying root Application from: $ROOT/argo-cd-apps/app-of-app-sets/development"
-    oc apply -k $ROOT/argo-cd-apps/app-of-app-sets/development
+    log_substep "Applying root Application from: $TARGET_APP_OF_APPS_PATH"
+    oc apply -k "$TARGET_APP_OF_APPS_PATH"
     log_success "Root Application 'all-application-sets' created"
 
     # Wait for root application to sync
@@ -767,12 +770,56 @@ wait_for_tekton_crds() {
     done
 }
 
+# Wait for Konflux CR to exist and become Ready.
+wait_for_konflux_cr_ready() {
+    log_step "Waiting for Konflux CR to become ready"
+    log_info "Reference: https://github.com/konflux-ci/konflux-ci/blob/main/scripts/deploy-local.sh"
+
+    local timeout_seconds=900
+    local start_time elapsed_time
+    start_time=$(date +%s)
+
+    log_substep "Waiting for Konflux CR resource 'konflux/konflux' to be created"
+    while ! kubectl get konflux konflux >/dev/null 2>&1; do
+        elapsed_time=$(( $(date +%s) - start_time ))
+        if [ "$elapsed_time" -ge "$timeout_seconds" ]; then
+            log_error "Konflux CR was not created within $((timeout_seconds / 60)) minutes"
+            log_error "Debug with:"
+            log_error "  kubectl get applications.argoproj.io -n $ARGOCD_NAMESPACE | grep konflux-operator"
+            log_error "  kubectl get konflux -A"
+            log_error "  kubectl get events -n konflux-operator --sort-by='.lastTimestamp' | tail -20"
+            FAILED_APPS="konflux-operator"
+            print_execution_summary "failed" "KONFLUX_CR_NOT_FOUND"
+            exit 1
+        fi
+
+        local elapsed_min=$((elapsed_time / 60))
+        local elapsed_sec=$((elapsed_time % 60))
+        log_wait "Konflux CR not created yet (${elapsed_min}m ${elapsed_sec}s elapsed)"
+        sleep $SYNC_INTERVAL
+    done
+
+    log_substep "Waiting for Konflux CR Ready=True condition"
+    if ! kubectl wait --for=condition=Ready=True konflux konflux --timeout=15m 2>/dev/null; then
+        log_error "Konflux CR did not become Ready within 15 minutes"
+        log_error "Debug with:"
+        log_error "  kubectl get konflux konflux -o yaml"
+        log_error "  kubectl get konflux konflux -o jsonpath='{.status.conditions}'"
+        FAILED_APPS="konflux-operator"
+        print_execution_summary "failed" "KONFLUX_CR_NOT_READY"
+        exit 1
+    fi
+
+    log_success "Konflux CR is ready"
+}
+
 # =============================================================================
 # Argument Parsing
 # =============================================================================
 OBO=false
 EAAS=false
 GRAFANA=false
+OPERATOR_OVERLAY=false
 
 while [[ $# -gt 0 ]]; do
     key=$1
@@ -789,6 +836,10 @@ while [[ $# -gt 0 ]]; do
             GRAFANA=true
             shift
             ;;
+        --operator-overlay)
+            OPERATOR_OVERLAY=true
+            shift
+            ;;
         -h|--help)
             print_help
             exit 0
@@ -799,13 +850,25 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+TARGET_PREVIEW_OVERLAY="development"
+if $OPERATOR_OVERLAY; then
+    TARGET_PREVIEW_OVERLAY="development-operator"
+fi
+TARGET_APP_OF_APPS_PATH="$ROOT/argo-cd-apps/app-of-app-sets/$TARGET_PREVIEW_OVERLAY"
+TARGET_OVERLAY_PATH="argo-cd-apps/overlays/$TARGET_PREVIEW_OVERLAY"
+TARGET_DELETE_FILE="$ROOT/argo-cd-apps/overlays/$TARGET_PREVIEW_OVERLAY/delete-applications.yaml"
+# development-operator kustomization inherits ../development; shared delete list.
+if [ "$TARGET_PREVIEW_OVERLAY" = "development-operator" ]; then
+    TARGET_DELETE_FILE="$ROOT/argo-cd-apps/overlays/development/delete-applications.yaml"
+fi
+
 # =============================================================================
 # Main Execution
 # =============================================================================
 
 log_step "Starting Konflux Preview Environment Setup"
 log_info "Script: $0"
-log_info "Options: OBO=$OBO, GRAFANA=$GRAFANA, EAAS=$EAAS"
+log_info "Options: OBO=$OBO, GRAFANA=$GRAFANA, EAAS=$EAAS, OVERLAY=$TARGET_PREVIEW_OVERLAY"
 log_info "Start time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
 
 # =============================================================================
@@ -892,26 +955,38 @@ log_success "All ArgoCD patch files updated"
 # Optional Components
 # =============================================================================
 if $OBO; then
+    if [ "$TARGET_PREVIEW_OVERLAY" != "development" ] && [ "$TARGET_PREVIEW_OVERLAY" != "development-operator" ]; then
+        log_warn "Ignoring --obo for overlay '$TARGET_PREVIEW_OVERLAY'"
+    else
     log_step "Enabling Observability (OBO) components"
     log_info "Adding Observability operator and Prometheus for federation"
     yq -i '.resources += ["monitoringstack/"]' $ROOT/components/monitoring/prometheus/development/kustomization.yaml
     log_success "Observability components enabled"
+    fi
 fi
 
 if $GRAFANA; then
+    if [ "$TARGET_PREVIEW_OVERLAY" != "development" ] && [ "$TARGET_PREVIEW_OVERLAY" != "development-operator" ]; then
+        log_warn "Ignoring --grafana for overlay '$TARGET_PREVIEW_OVERLAY'"
+    else
     log_step "Enabling Grafana dashboard"
     log_info "Removing monitoring-workload-grafana from delete-applications.yaml"
-    local delete_file="$ROOT/argo-cd-apps/overlays/development/delete-applications.yaml"
+    local delete_file="$TARGET_DELETE_FILE"
     yq -i 'select(.metadata.name != "monitoring-workload-grafana")' "$delete_file"
     log_success "Grafana enabled: monitoring-workload-grafana will be deployed"
+    fi
 fi
 
 if $EAAS; then
+    if [ "$TARGET_PREVIEW_OVERLAY" != "development" ] && [ "$TARGET_PREVIEW_OVERLAY" != "development-operator" ]; then
+        log_warn "Ignoring --eaas for overlay '$TARGET_PREVIEW_OVERLAY'"
+    else
     log_step "Enabling Environment-as-a-Service (EaaS) components"
     log_info "Enabling EaaS cluster role assignment"
     yq -i '.components += ["../../../k-components/assign-eaas-role-to-local-cluster"]' \
         $ROOT/argo-cd-apps/base/local-cluster-secret/all-in-one/kustomization.yaml
     log_success "EaaS components enabled"
+    fi
 fi
 
 # =============================================================================
@@ -919,28 +994,32 @@ fi
 # =============================================================================
 label_cluster_nodes
 
-configure_deploy_only
-configure_kueue_for_ocp_version
+if [ "$TARGET_PREVIEW_OVERLAY" = "development" ] || [ "$TARGET_PREVIEW_OVERLAY" = "development-operator" ]; then
+    configure_deploy_only
+    configure_kueue_for_ocp_version
 
-# Configure GitHub org
-log_step "Configuring GitHub organization"
-log_info "Setting GitHub org to: $MY_GITHUB_ORG"
-$ROOT/hack/util-set-github-org $MY_GITHUB_ORG
-log_success "GitHub organization configured"
+    # Configure GitHub org
+    log_step "Configuring GitHub organization"
+    log_info "Setting GitHub org to: $MY_GITHUB_ORG"
+    $ROOT/hack/util-set-github-org $MY_GITHUB_ORG
+    log_success "GitHub organization configured"
 
-# Configure Rekor server hostname
-log_step "Configuring Rekor server hostname"
-domain=$(oc get ingresses.config.openshift.io cluster --template={{.spec.domain}})
-rekor_server="rekor.$domain"
-log_info "Cluster domain: $domain"
-log_info "Rekor server hostname: $rekor_server"
-sed -i.bak "s/rekor-server.enterprise-contract-service.svc/$rekor_server/" $ROOT/argo-cd-apps/base/member/optional/helm/rekor/rekor.yaml && rm $ROOT/argo-cd-apps/base/member/optional/helm/rekor/rekor.yaml.bak
-log_success "Rekor server hostname configured"
+    # Configure Rekor server hostname
+    log_step "Configuring Rekor server hostname"
+    domain=$(oc get ingresses.config.openshift.io cluster --template={{.spec.domain}})
+    rekor_server="rekor.$domain"
+    log_info "Cluster domain: $domain"
+    log_info "Rekor server hostname: $rekor_server"
+    sed -i.bak "s/rekor-server.enterprise-contract-service.svc/$rekor_server/" $ROOT/argo-cd-apps/base/member/optional/helm/rekor/rekor.yaml && rm $ROOT/argo-cd-apps/base/member/optional/helm/rekor/rekor.yaml.bak
+    log_success "Rekor server hostname configured"
 
-# =============================================================================
-# Service Image Overrides
-# =============================================================================
-apply_service_image_overrides
+    # =============================================================================
+    # Service Image Overrides
+    # =============================================================================
+    apply_service_image_overrides
+else
+    log_info "Skipping full development overlay customizations for '$TARGET_PREVIEW_OVERLAY'"
+fi
 
 # =============================================================================
 # Commit and Push - INLINE (not in function) as per original script
@@ -960,6 +1039,13 @@ fi
 deploy_and_wait_for_argocd
 
 # =============================================================================
+# Wait for Konflux CR (operator overlay)
+# =============================================================================
+if [ "$TARGET_PREVIEW_OVERLAY" = "development-operator" ]; then
+    wait_for_konflux_cr_ready
+fi
+
+# =============================================================================
 # Wait for Tekton
 # =============================================================================
 wait_for_tekton_ready
@@ -968,9 +1054,13 @@ wait_for_tekton_crds
 # =============================================================================
 # Final Configuration
 # =============================================================================
-log_step "Configuring Pipelines as Code integration"
-$ROOT/hack/build/setup-pac-integration.sh
-log_success "Pipelines as Code configured"
+if [ "$TARGET_PREVIEW_OVERLAY" = "development" ] || [ "$TARGET_PREVIEW_OVERLAY" = "development-operator" ]; then
+    log_step "Configuring Pipelines as Code integration"
+    $ROOT/hack/build/setup-pac-integration.sh
+    log_success "Pipelines as Code configured"
+else
+    log_info "Skipping Pipelines as Code integration for '$TARGET_PREVIEW_OVERLAY'"
+fi
 
 # =============================================================================
 # Complete

@@ -1,0 +1,9 @@
+# Operator-focused development: same Argo graph as ../development (patches,
+# local-cluster-secret, pipeline-service, policies, etc.) with legacy member
+# microservice ApplicationSets removed (delete-legacy-konflux-member-appsets.yaml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../development
+patchesStrategicMerge:
+  - delete-legacy-konflux-member-appsets.yaml

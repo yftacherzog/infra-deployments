@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Pinned upstream operator source. This is the same source used by
+  # konflux-ci release automation to generate install.yaml (`make build-installer`).
+  - https://github.com/konflux-ci/konflux-ci/operator/config/default?ref=0bace1e20ff164a00e9d6becfce52e310a921931
+
+images:
+  # Overlay-local image pin to keep ring promotion explicit and copyable.
+  - name: localhost/konflux-operator
+    newName: quay.io/konflux-ci/konflux-operator
+    newTag: 0bace1e20ff164a00e9d6becfce52e310a921931
+

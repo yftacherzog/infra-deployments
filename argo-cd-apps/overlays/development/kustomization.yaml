@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - ../../base/local-cluster-secret/all-in-one
   - ../../base/member
+  - ../../base/member/infra-deployments/konflux-operator
   - ../../base/all-clusters
   - ../../base/ca-bundle
   - ../../base/repository-validator
@@ -216,3 +217,8 @@ patches:
       kind: ApplicationSet
       version: v1alpha1
       name: perf-team-prometheus-reader
+  - path: development-overlay-patch.yaml
+    target:
+      kind: ApplicationSet
+      version: v1alpha1
+      name: konflux-operator

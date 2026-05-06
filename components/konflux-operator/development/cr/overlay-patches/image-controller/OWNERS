@@ -1,0 +1,19 @@
+# See the OWNERS docs: https://go.k8s.io/owners
+
+approvers:
+- mmorhun
+- tkdchen
+- rcerven
+- mkosiarc
+- tisutisu
+- chmeliik
+- MartinBasti
+
+reviewers:
+- mmorhun
+- tkdchen
+- mkosiarc
+- rcerven
+- tisutisu
+- chmeliik
+- MartinBasti

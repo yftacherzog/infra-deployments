@@ -4,4 +4,4 @@
   value: https://github.com/yftacherzog/infra-deployments.git
 - op: replace
   path: /spec/template/spec/sources/1/targetRevision
-  value: preview-operator-ci
+  value: preview-preview-operator-ci

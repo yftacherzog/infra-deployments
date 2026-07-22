@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - https://github.com/konflux-ci/konflux-ci/operator/config/default?ref=f9a2df3d1b119c0c5a6e22c7fbf24a6ead97ce40
+  - https://github.com/konflux-ci/konflux-ci/operator/config/default?ref=f1f2d032479eb32c50e0e8da30bfb584f0159127
   - konflux.yaml
 
 patches:
@@ -10,4 +10,4 @@ patches:
 images:
   - name: localhost/konflux-operator
     newName: quay.io/redhat-user-workloads/konflux-vanguard-tenant/konflux-operator
-    newTag: on-pr-f9a2df3d1b119c0c5a6e22c7fbf24a6ead97ce40-linux-x86-64
+    newTag: on-pr-f1f2d032479eb32c50e0e8da30bfb584f0159127-linux-x86-64

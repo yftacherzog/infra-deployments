@@ -634,6 +634,18 @@ deploy_and_wait_for_argocd() {
             break
         fi
 
+        # Optional early exit for operator-overlay smoke/preview: wait only for
+        # the konflux-operator Application(s), not every platform app.
+        if [ "${PREVIEW_WAIT_OPERATOR_APPS_ONLY:-}" = "true" ]; then
+            local operator_pending
+            operator_pending=$(echo "$not_done" | awk '{print $1}' | grep -E 'konflux-operator' || true)
+            if [ -z "$operator_pending" ]; then
+                log_success "konflux-operator Application(s) Synced/Healthy; skipping wait for remaining apps (PREVIEW_WAIT_OPERATOR_APPS_ONLY=true)"
+                TOTAL_APPS_DEPLOYED=$synced_apps
+                break
+            fi
+        fi
+
         # Show pending application names (compact)
         local pending_names
         pending_names=$(echo "$not_done" | awk '{print $1}' | tr '\n' ', ' | sed 's/,$//')

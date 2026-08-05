@@ -4,4 +4,4 @@
   value: https://github.com/yftacherzog/infra-deployments.git
 - op: replace
   path: /spec/template/spec/sources/1/targetRevision
-  value: preview-preview-host-field-test
+  value: preview-preview-preview-host-field-test

@@ -2118,7 +2118,8 @@ spec:
                 topologySpreadConstraints:
                   - maxSkew: 1
                     topologyKey: topology.kubernetes.io/zone
-                    whenUnsatisfiable: DoNotSchedule
+                    whenUnsatisfiable: ScheduleAnyway
+                    nodeTaintsPolicy: Honor
                     labelSelector:
                       matchLabels:
                         app: tekton-pipelines-controller
@@ -2176,11 +2177,11 @@ spec:
                 type: Resource
             minReplicas: 2
     performance:
-      buckets: 2
-      disable-ha: false
+      buckets: 1
+      disable-ha: true
       kube-api-burst: 50
       kube-api-qps: 50
-      replicas: 2
+      replicas: 1
       threads-per-controller: 32
       statefulset-ordinals: true
   platforms:

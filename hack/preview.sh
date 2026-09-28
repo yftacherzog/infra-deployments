@@ -621,7 +621,8 @@ deploy_and_wait_for_argocd() {
         fi
 
         # Applications known to be non-blocking for rd-dev (pre-existing infra issues).
-        local skip_apps_pattern="container-image-proxy"
+        # pipeline-service: single-AZ preview often leaves tekton-results Degraded (minio pull).
+        local skip_apps_pattern="container-image-proxy|pipeline-service"
 
         state=$(oc get apps -n $ARGOCD_NAMESPACE --no-headers 2>/dev/null || echo "")
         total_apps=$(echo "$state" | grep -c "." || echo "0")

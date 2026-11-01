@@ -1,7 +1,7 @@
 ---
 - op: replace
   path: /spec/template/spec/sources/1/repoURL
-  value: https://github.com/redhat-appstudio/infra-deployments.git
+  value: https://github.com/yftacherzog/infra-deployments.git
 - op: replace
   path: /spec/template/spec/sources/1/targetRevision
-  value: main
+  value: preview-pr-15282-local-pr15282-1793629456

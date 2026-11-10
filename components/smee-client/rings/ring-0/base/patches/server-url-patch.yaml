@@ -6,7 +6,7 @@
 # hook.pipelinesascode.com uses gosmee which properly preserves webhook signatures.
 - op: replace
   path: /spec/template/spec/containers/0/args/3
-  value: "https://hook.pipelinesascode.com/REPLACE_ME"
+  value: "https://smee.io/PTYMtI85flcHgvq"
 - op: replace
   path: /spec/template/spec/containers/1/env/1/value
-  value: "https://hook.pipelinesascode.com/REPLACE_ME"
+  value: "https://smee.io/PTYMtI85flcHgvq"

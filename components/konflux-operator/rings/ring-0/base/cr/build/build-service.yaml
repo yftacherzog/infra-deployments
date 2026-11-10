@@ -8,7 +8,7 @@ spec:
       pacWebhookInsecureSSL: true
       logEncoder: console
       webhookURLs:
-        "https://codeberg.org": "SMEE_CHANNEL_PLACEHOLDER"
+        "https://codeberg.org": "https://smee.io/PTYMtI85flcHgvq"
       pipelineConfig:
         # Align with legacy build-pipeline-config (default + additional-params).
         defaultPipelineName: docker-build-oci-ta
@@ -28,4 +28,4 @@ spec:
         manager:
           env:
             - name: IMAGE_TAG_ON_PR_EXPIRATION
-              value: ""
+              value: "5d"

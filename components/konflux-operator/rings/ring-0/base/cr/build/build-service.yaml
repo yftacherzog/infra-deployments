@@ -8,7 +8,7 @@ spec:
       pacWebhookInsecureSSL: true
       logEncoder: console
       webhookURLs:
-        "https://codeberg.org": "SMEE_CHANNEL_PLACEHOLDER"
+        "https://codeberg.org": "https://example.com/hook?a=1&b=2"
       pipelineConfig:
         # Align with legacy build-pipeline-config (default + additional-params).
         defaultPipelineName: docker-build-oci-ta

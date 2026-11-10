@@ -1,9 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 resources:
   - invariant
-
 components:
   - cr/build
   - cr/image-controller
@@ -13,6 +11,6 @@ components:
   - cr/namespace-lister
   - cr/release
   - cr/enterprise-contract
-
+  - cr/image-controller/rbac
 patches:
   - path: release-config.yaml
